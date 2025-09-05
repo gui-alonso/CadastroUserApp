@@ -7,8 +7,9 @@ Trata de um aplicativo simples de usuários, onde em breve será integrado junta
 ## Instruções
 
 ```
-npx create-expo-app@latest <nomeDoProjeto>
+npx create-expo-app@latest <nomeDoProjeto> --template
 ```
+Aqui é apenas um exemplo, você substituir <nomeDoProjeto> pelo nome real que você quer.
 
 ### Comando para instalar tudo junto
 ```

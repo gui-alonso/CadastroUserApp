@@ -1,38 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import UserItem from '../components/UserItem';
-import { useIsFocused } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { API_BASE_URL } from '../constants/api';
 
 export default function UserListScreen({ navigation }) {
-    const [users, setUsers] = useState([
-        {id: 1, name: "João Silva", email: "joao@example.com", password: "123456"},
-        {id: 2, name: "Guilherme", email: "guilherme@example.com", password: "12345678"},
-    ]);
+    const [users, setUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const isFocused = useIsFocused();
+    //const API_URL = 'http://192.168.2.19:3000/api/users'; // Altere para o IP do seu computador
+    const API_URL = `${API_BASE_URL}/api/users`;
 
-    // Este useEffect é acionado quando a tela ganha foco
-    // Ele verifica se há um novo usuário a ser adicionado
-    useEffect(() => {
-        if (isFocused && navigation.getState().routes[1]?.params?.newUser) {
-            const newUser = navigation.getState().routes[1].params.newUser;
-            setUsers(prevUsers => [...prevUsers, newUser]);
-            // Limpa o parâmetro para não adicionar o mesmo usuário novamente
-            delete navigation.getState().routes[1].params.newUser;
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            if (response.ok) {
+                setUsers(data);
+                setError(null);
+            } else {
+                setError('Erro ao carregar usuários: ' + (data.error || data.message));
+                console.error(data);
+            }
+        } catch (err) {
+            setError('Não foi possível conectar ao servidor. Verifique a sua conexão.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
         }
-    }, [isFocused]);
+    };
+
+    const handleDeleteUser = async (id) => {
+        Alert.alert(
+            "Confirmar Exclusão",
+            "Tem certeza de que deseja deletar este usuário?",
+            [
+                { text: "Cancelar", style: "cancel" },
+                { 
+                    text: "Deletar", 
+                    onPress: async () => {
+                        try {
+                            const response = await fetch(`${API_URL}/${id}`, {
+                                method: 'DELETE',
+                            });
+
+                            if (response.ok) {
+                                Alert.alert("Sucesso", "Usuário deletado com sucesso!");
+                                fetchUsers(); // Recarrega a lista
+                            } else {
+                                const data = await response.json();
+                                Alert.alert("Erro", data.error || "Não foi possível deletar o usuário.");
+                            }
+                        } catch (err) {
+                            Alert.alert("Erro", "Não foi possível conectar ao servidor.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchUsers();
+        }, [])
+    );
+
+    const renderUserItem = ({ item }) => (
+        <View style={styles.userItemContainer}>
+            <UserItem 
+                name={item.name} 
+                email={item.email} 
+                onPress={() => navigation.navigate('UserForm', { user: item })}
+            />
+            <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => handleDeleteUser(item.id)}
+            >
+                <Ionicons name="trash-outline" size={24} color="red" />
+            </TouchableOpacity>
+        </View>
+    );
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <ActivityIndicator size="large" color="#0000ff" style={styles.centered} />;
+        }
+        if (error) {
+            return <Text style={styles.errorText}>{error}</Text>;
+        }
+        if (users.length === 0) {
+            return <Text style={styles.emptyListText}>Nenhum usuário cadastrado.</Text>;
+        }
+        
+        return (
+            <FlatList
+                data={users}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderUserItem}
+            />
+        );
+    };
 
     return(
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                <FlatList
-                    data={users}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        <UserItem name={item.name} email={item.email} password={item.password} />
-                    )}
-                />
-
+                {renderContent()}
                 <TouchableOpacity 
                     style={styles.fab} 
                     onPress={() => navigation.navigate('UserForm')}
@@ -53,11 +129,22 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 20,
         paddingBottom: 20,
+        justifyContent: 'center',
     },
-    userItem: {
-        padding: 10,
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    userItemContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         borderBottomWidth: 1,
         borderBottomColor: '#ccc',
+    },
+    deleteButton: {
+        padding: 10,
     },
     fab: {
         position: 'absolute',
@@ -75,5 +162,15 @@ const styles = StyleSheet.create({
         fontSize: 30,
         color: 'white',
         fontWeight: 'bold',
-    }
+    },
+    errorText: {
+        textAlign: 'center',
+        color: 'red',
+        fontSize: 16,
+    },
+    emptyListText: {
+        textAlign: 'center',
+        fontSize: 16,
+        color: '#666',
+    },
 });

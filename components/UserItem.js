@@ -1,33 +1,36 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-// Componente funcional que representa um item de usuário
-export default function UserItem({ name, email, password}) {
-    return(
-        <View style={styles.container}>
-            <Text style={styles.name}>{name}</Text>
-            <Text style={styles.email}>{email}</Text>
-            <Text style={styles.password}>Senha: {password}</Text>
-        </View>
+export default function UserItem({ name, email, onPress }) {
+    return (
+        // O TouchableOpacity torna o componente clicável
+        <TouchableOpacity style={styles.container} onPress={onPress}>
+            <View style={styles.infoContainer}>
+                <Text style={styles.name}>{name}</Text>
+                <Text style={styles.email}>{email}</Text>
+            </View>
+        </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        padding: 10,
+        padding: 15,
+        backgroundColor: '#f9f9f9',
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc'
+        borderBottomColor: '#eee',
+    },
+    infoContainer: {
+        flex: 1,
     },
     name: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
+        color: '#333',
     },
     email: {
         fontSize: 14,
         color: '#666',
+        marginTop: 4,
     },
-    password: {
-        fontSize: 14,
-        color: '#666',
-    }
 });

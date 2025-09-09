@@ -1,31 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 
-import UserFormScreen from './screens/UserFormScreen';
+// Importa as telas
 import UserListScreen from './screens/UserListScreen';
+import UserFormScreen from './screens/UserFormScreen';
 
-// cria o "stack navigation", que organiza a navegação
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      {/* CORREÇÃO: Altera a tela inicial para "UserList" */}
       <Stack.Navigator initialRouteName="UserList">
         <Stack.Screen 
           name="UserList" 
           component={UserListScreen} 
           options={{ title: 'Lista de Usuários' }}
         />
-        
         <Stack.Screen 
           name="UserForm" 
           component={UserFormScreen} 
           options={{ title: 'Formulário de Usuário' }}
         />
       </Stack.Navigator>
-      <StatusBar style="auto" /> 
     </NavigationContainer>
   );
 }

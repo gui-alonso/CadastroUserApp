@@ -1,176 +1,229 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import UserItem from '../components/UserItem';
-import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL } from '../constants/api';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  Alert,
+} from "react-native";
+import { API_BASE_URL } from "../constants/api";
 
 export default function UserListScreen({ navigation }) {
-    const [users, setUsers] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    //const API_URL = 'http://192.168.2.19:3000/api/users'; // Altere para o IP do seu computador
-    const API_URL = `${API_BASE_URL}/api/users`;
+  // Endpoint da API de listagem de usuários
+  const API_URL = `${API_BASE_URL}/api/users`;
 
-    const fetchUsers = async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch(API_URL);
-            const data = await response.json();
-            if (response.ok) {
-                setUsers(data);
-                setError(null);
-            } else {
-                setError('Erro ao carregar usuários: ' + (data.error || data.message));
-                console.error(data);
+  // Função para buscar os usuários da API
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      if (response.ok) {
+        setUsers(data);
+      } else {
+        console.error("Erro ao buscar usuários:", data.error);
+        Alert.alert("Erro", "Não foi possível carregar a lista de usuários.");
+      }
+    } catch (error) {
+      console.error("Erro ao conectar à API:", error);
+      Alert.alert(
+        "Erro",
+        "Não foi possível conectar ao servidor. Verifique se o servidor está rodando."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Busca os usuários quando a tela é carregada
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchUsers();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Função para lidar com a exclusão de um usuário
+  const handleDelete = async (id) => {
+    Alert.alert(
+      "Confirmar Exclusão",
+      "Tem certeza que deseja deletar este usuário?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Deletar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_URL}/${id}`, {
+                method: "DELETE",
+              });
+              const data = await response.json();
+
+              if (response.ok) {
+                Alert.alert("Sucesso", data.message);
+                fetchUsers(); // Atualiza a lista
+              } else {
+                Alert.alert("Erro", data.error || "Algo deu errado ao deletar.");
+              }
+            } catch (error) {
+              console.error("Erro ao deletar usuário:", error);
+              Alert.alert("Erro", "Não foi possível conectar ao servidor.");
             }
-        } catch (err) {
-            setError('Não foi possível conectar ao servidor. Verifique a sua conexão.');
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDeleteUser = async (id) => {
-        Alert.alert(
-            "Confirmar Exclusão",
-            "Tem certeza de que deseja deletar este usuário?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "Deletar", 
-                    onPress: async () => {
-                        try {
-                            const response = await fetch(`${API_URL}/${id}`, {
-                                method: 'DELETE',
-                            });
-
-                            if (response.ok) {
-                                Alert.alert("Sucesso", "Usuário deletado com sucesso!");
-                                fetchUsers(); // Recarrega a lista
-                            } else {
-                                const data = await response.json();
-                                Alert.alert("Erro", data.error || "Não foi possível deletar o usuário.");
-                            }
-                        } catch (err) {
-                            Alert.alert("Erro", "Não foi possível conectar ao servidor.");
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchUsers();
-        }, [])
+          },
+        },
+      ]
     );
+  };
 
-    const renderUserItem = ({ item }) => (
-        <View style={styles.userItemContainer}>
-            <UserItem 
-                name={item.name} 
-                email={item.email} 
-                onPress={() => navigation.navigate('UserForm', { user: item })}
-            />
-            <TouchableOpacity 
-                style={styles.deleteButton}
-                onPress={() => handleDeleteUser(item.id)}
-            >
-                <Ionicons name="trash-outline" size={24} color="red" />
-            </TouchableOpacity>
-        </View>
-    );
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/logout`, { method: "POST" });
+      navigation.navigate("Login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      Alert.alert("Erro", "Não foi possível fazer logout. Tente novamente.");
+    }
+  };
 
-    const renderContent = () => {
-        if (isLoading) {
-            return <ActivityIndicator size="large" color="#0000ff" style={styles.centered} />;
-        }
-        if (error) {
-            return <Text style={styles.errorText}>{error}</Text>;
-        }
-        if (users.length === 0) {
-            return <Text style={styles.emptyListText}>Nenhum usuário cadastrado.</Text>;
-        }
-        
-        return (
-            <FlatList
-                data={users}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderUserItem}
-            />
-        );
-    };
+  // Renderiza um item da lista
+  const renderItem = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <View>
+        <Text style={styles.itemTextBold}>Nome: {item.name}</Text>
+        <Text>Email: {item.email}</Text>
+        <Text>ID: {item.id}</Text>
+        <Text>Role: {item.role}</Text>
+      </View>
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.editButton]}
+          onPress={() => navigation.navigate("UserForm", { user: item })}
+        >
+          <Text style={styles.buttonText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.deleteButton]}
+          onPress={() => handleDelete(item.id)}
+        >
+          <Text style={styles.buttonText}>Deletar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-    return(
-        <SafeAreaView style={styles.safeArea}>
-            <View style={styles.container}>
-                {renderContent()}
-                <TouchableOpacity 
-                    style={styles.fab} 
-                    onPress={() => navigation.navigate('UserForm')}
-                >
-                    <Text style={styles.fabText}>+</Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
-    );
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Painel de Admin</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Sair</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate("UserForm")}
+      >
+        <Text style={styles.addButtonText}>Adicionar Novo Usuário</Text>
+      </TouchableOpacity>
+
+      {isLoading ? (
+        <Text style={styles.loadingText}>Carregando...</Text>
+      ) : (
+        <FlatList
+          data={users}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    container: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        justifyContent: 'center',
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    userItemContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    deleteButton: {
-        padding: 10,
-    },
-    fab: {
-        position: 'absolute',
-        width: 60,
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-        right: 20,
-        bottom: 20,
-        backgroundColor: '#007AFF',
-        borderRadius: 30,
-        elevation: 8,
-    },
-    fabText: {
-        fontSize: 30,
-        color: 'white',
-        fontWeight: 'bold',
-    },
-    errorText: {
-        textAlign: 'center',
-        color: 'red',
-        fontSize: 16,
-    },
-    emptyListText: {
-        textAlign: 'center',
-        fontSize: 16,
-        color: '#666',
-    },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  logoutButton: {
+    backgroundColor: "#d32f2f",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 5,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  addButton: {
+    backgroundColor: "#007AFF",
+    padding: 15,
+    margin: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  listContainer: {
+    paddingHorizontal: 15,
+  },
+  itemContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  itemTextBold: {
+    fontWeight: "bold",
+  },
+  buttonsContainer: {
+    flexDirection: "row",
+  },
+  button: {
+    padding: 8,
+    borderRadius: 5,
+    marginLeft: 10,
+  },
+  editButton: {
+    backgroundColor: "#007AFF",
+  },
+  deleteButton: {
+    backgroundColor: "#d32f2f",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  loadingText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+  },
 });
